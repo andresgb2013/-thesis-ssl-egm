@@ -1,9 +1,28 @@
-﻿data/raw/
-data/processed/
-results/
+﻿# Dataset — too large for GitHub
+data/
+
+# Python cache
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+
+# Results and model checkpoints
+results/
+
+# Jupyter
 .ipynb_checkpoints/
-*.egg-info/
+
+# Environment
 .env
+*.egg-info/
+
+# VS Code
+.vscode/
+
+# Conda
+*.conda
+
+# Weights & Biases
 wandb/
