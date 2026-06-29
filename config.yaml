@@ -16,12 +16,12 @@ model:
 
 # ─── Training ───────────────────────────────────────
 training:
-  epochs: 100
+  epochs: 150
   batch_size: 32
   lr: 0.0003
   weight_decay: 0.0001
   temperature: 0.07                # InfoNCE temperature
-  reconstruction_weight: 0.5      # weight of reconstruction loss vs contrastive
+  reconstruction_weight: 1.0  # weight of reconstruction loss vs contrastive
 
 # ─── Evaluation ─────────────────────────────────────
 evaluation:

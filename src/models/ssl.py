@@ -17,14 +17,22 @@ class SSLModel(nn.Module):
         self.encoder = build_encoder(in_channels, hidden_dim, out_dim)
 
         # decoder for reconstruction loss
+        # Replace the decoder in SSLModel.__init__
         self.decoder = nn.Sequential(
-            nn.Linear(out_dim, hidden_dim),
+            nn.Linear(out_dim, hidden_dim * 8),
             nn.GELU(),
-            nn.Linear(hidden_dim, hidden_dim * 4),
+            nn.Unflatten(1, (hidden_dim, 8)),        # (B, hidden, 8)
+            nn.ConvTranspose1d(hidden_dim, hidden_dim,
+                            kernel_size=4, stride=4),   # → (B, hidden, 32)
             nn.GELU(),
-            nn.Linear(hidden_dim * 4, 500 * in_channels),
-        )
-        self.in_channels = in_channels
+            nn.ConvTranspose1d(hidden_dim, hidden_dim // 2,
+                            kernel_size=4, stride=4),   # → (B, hidden/2, 128)
+            nn.GELU(),
+            nn.ConvTranspose1d(hidden_dim // 2, in_channels,
+                            kernel_size=4, stride=4),   # → (B, C, 512)
+            nn.AdaptiveAvgPool1d(500),                     # → (B, C, 500)
+)
+        
 
     def forward(self, x):
         """
@@ -48,10 +56,8 @@ class SSLModel(nn.Module):
         return self.encoder(x)
 
     def decode(self, z, target_len=500):
-        """Reconstruct signal from latent vector"""
-        B = z.shape[0]
-        out = self.decoder(z)
-        return out.view(B, target_len, self.in_channels)
+        out = self.decoder(z)                          # (B, C, 500)
+        return out.permute(0, 2, 1)                    # (B, 500, C)
 
     def save(self, path):
         torch.save(self.state_dict(), path)

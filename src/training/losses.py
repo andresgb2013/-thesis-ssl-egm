@@ -34,43 +34,27 @@ def info_nce_loss(z1, z2, temperature=0.07):
     return F.cross_entropy(sim, labels)
 
 
-def reconstruction_loss(model, x1, z1, target_len=500):
+def reconstruction_loss(model, x1, x_original):
     """
-    Masked reconstruction loss.
-    Masks 50% of the signal, reconstructs from latent vector.
-    Encourages encoder to capture full temporal structure.
+    Reconstruct original signal from augmented view encoding.
+    Simpler than masked reconstruction — more stable for small datasets.
+    x1:         augmented view  (B, T, C)
+    x_original: clean original  (B, T, C)
     """
     B, T, C = x1.shape
 
-    # create mask — 50% of timesteps
-    mask = torch.rand(B, T, 1).to(x1.device) > 0.5
-    mask = mask.expand_as(x1)
+    # encode augmented view
+    z = model.encoder(x1)
 
-    # apply mask
-    x_masked = x1 * mask.float()
+    # reconstruct — target is the ORIGINAL clean signal
+    x_recon = model.decode(z, target_len=T)
 
-    # encode masked signal
-    z_masked = model.encoder(x_masked)
+    return F.mse_loss(x_recon, x_original)
 
-    # reconstruct
-    x_recon = model.decode(z_masked, target_len=T)
-
-    # loss only on masked regions
-    loss = F.mse_loss(
-        x_recon[~mask],
-        x1[~mask]
-    )
-    return loss
-
-
-def combined_loss(z1, z2, model, x1,
+def combined_loss(z1, z2, model, x1, x_original,
                 temperature=0.07,
                 recon_weight=0.5):
-    """
-    Total SSL loss = contrastive + reconstruction.
-    recon_weight controls the balance between the two.
-    """
     c_loss = info_nce_loss(z1, z2, temperature)
-    r_loss = reconstruction_loss(model, x1, z1)
+    r_loss = reconstruction_loss(model, x1, x_original)
     total  = c_loss + recon_weight * r_loss
     return total, c_loss, r_loss

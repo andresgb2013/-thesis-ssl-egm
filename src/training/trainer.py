@@ -43,9 +43,9 @@ class Trainer:
             # forward — generates two augmented views
             z1, z2, x1, x2 = self.model(x)
 
-            # combined loss
+            # combined loss — pass x as the reconstruction target
             loss, c_loss, r_loss = combined_loss(
-                z1, z2, self.model, x1,
+                z1, z2, self.model, x1, x,   # ← x is the clean original
                 temperature=self.config['training']['temperature'],
                 recon_weight=self.config['training']['reconstruction_weight']
             )
