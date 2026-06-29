@@ -1,34 +1,29 @@
-# ─── Data ───────────────────────────────────────────
 data:
-  source: ptbxl                    # ptbxl or charite
+  source: ptbxl
   ptbxl_dir: data/raw/ptb-xl
-  charite_dir: data/raw/charite    # fill when data arrives
-  max_records: 500                 # null = use all
-  window_len: 500                  # timesteps per window (500 = 5s at 100Hz PTB-XL)
-  overlap: 0.5                     # 50% overlap between windows
+  charite_dir: data/raw/charite
+  max_records: 500
+  window_len: 500
+  overlap: 0.5
 
-# ─── Model ──────────────────────────────────────────
 model:
-  in_channels: 12                  # 12 for PTB-XL, 25 for Charité
+  in_channels: 12
   hidden_dim: 128
-  out_dim: 64                      # size of latent vector z
+  out_dim: 64
   n_augmentations: 6
 
-# ─── Training ───────────────────────────────────────
 training:
-  epochs: 150
+  epochs: 20
   batch_size: 32
   lr: 0.0003
   weight_decay: 0.0001
-  temperature: 0.07                # InfoNCE temperature
-  reconstruction_weight: 1.0  # weight of reconstruction loss vs contrastive
+  temperature: 0.07
+  reconstruction_weight: 0.0
 
-# ─── Evaluation ─────────────────────────────────────
 evaluation:
   umap_neighbors: 15
   probe_max_iter: 1000
 
-# ─── Paths ──────────────────────────────────────────
 paths:
   results_dir: results
   checkpoint: results/encoder.pt
