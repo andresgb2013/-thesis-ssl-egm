@@ -3,7 +3,7 @@ data:
   ptbxl_dir: data/raw/ptb-xl
   charite_dir: data/raw/charite
   max_records: 500
-  window_len: 500
+  window_len: 200
   overlap: 0.5
 
 model:

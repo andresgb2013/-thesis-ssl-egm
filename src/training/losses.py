@@ -52,9 +52,14 @@ def reconstruction_loss(model, x1, x_original):
     return F.mse_loss(x_recon, x_original)
 
 def combined_loss(z1, z2, model, x1, x_original,
-                temperature=0.07,
-                recon_weight=0.5):
+                  temperature=0.07,
+                  recon_weight=0.5):
     c_loss = info_nce_loss(z1, z2, temperature)
+
+    # skip reconstruction if weight is 0
+    if recon_weight == 0.0:
+        return c_loss, c_loss, torch.tensor(0.0)
+
     r_loss = reconstruction_loss(model, x1, x_original)
     total  = c_loss + recon_weight * r_loss
     return total, c_loss, r_loss
