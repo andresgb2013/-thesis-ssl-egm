@@ -9,7 +9,7 @@ __pycache__/
 .Python
 
 # Results and model checkpoints
-results/
+#results/
 
 # Jupyter
 .ipynb_checkpoints/
