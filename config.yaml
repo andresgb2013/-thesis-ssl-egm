@@ -26,6 +26,5 @@ evaluation:
 
 paths:
   results_dir: results
-  #checkpoint: results/encoder.pt
-  policy_checkpoint: results/policy.pt
-  checkpoint: results/encoder_overlap_50.pt
+  checkpoint: results/encoder_full.pt
+  policy_checkpoint: results/policy_full.pt
