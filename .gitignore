@@ -1,5 +1,5 @@
 ﻿# Dataset — too large for GitHub
-data/
+data/raw/
 
 # Python cache
 __pycache__/

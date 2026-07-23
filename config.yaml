@@ -2,7 +2,7 @@ data:
   source: ptbxl
   ptbxl_dir: data/raw/ptb-xl
   charite_dir: data/raw/charite
-  max_records: null
+  max_records: 6551
   window_len: 200
   overlap: 0.5
 
