@@ -32,11 +32,12 @@ def main():
         raise ValueError(f"Unknown data source: {source}")
 
     loader = make_dataloader(
-        signals,
-        labels,
+        signals, labels,
         window_len=config['data']['window_len'],
+        overlap=config['data']['overlap'],
         batch_size=config['training']['batch_size'],
-    )
+        norm_mode=config['data']['norm_mode'],   # ← añade esta línea
+)
 
     # ── model ─────────────────────────────────────────
     model = SSLModel(
