@@ -4,7 +4,7 @@
 
 > Master's Thesis — Work in Progress  
 > Andrés · MSc Computer Science (Big Data & AI) · SRH Berlin University of Applied Sciences  
-> In collaboration with **Charité – Universitätsmedizin Berlin / DHZC**
+> In collaboration with **Charité/ DHZC**
 
 ---
 
