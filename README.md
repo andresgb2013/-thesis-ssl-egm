@@ -3,7 +3,8 @@
 **Self-Supervised Representation Learning for Intracardiac Electrophysiological Signals**
 
 > Master's Thesis — Work in Progress  
-> Andrés · MSc Computer Science (Big Data & AI) · 
+> Andrés · MSc Computer Science (Big Data & AI) · SRH Berlin University of Applied Sciences  
+> In collaboration with **Charité/ DHZC**
 
 ---
 
@@ -28,16 +29,20 @@ The framework follows the two-stage pipeline from the PulseSelect EGM project:
 | Learnable augmentation policy | ✅ Complete |
 | Dilated CNN encoder | ✅ Complete |
 | Contrastive SSL training (InfoNCE) | ✅ Complete |
+| Flexible normalisation (window / patient / global) | ✅ Complete |
 | Overlap windowing experiment | ✅ Complete — 50% optimal |
 | UMAP + policy analysis | ✅ Complete |
+| GPU training on Kaggle (T4) | ✅ Running |
 | Stage 2 — Δ64 + XGBoost | 🔜 Planned |
 | Charité data integration | ⏳ Pending data access |
 
 ---
 
-## Key Results So Far (PTB-XL, 500 records)
+## Experimental Results
 
-**Overlap experiment** — 5 windowing strategies compared (10% to 50%):
+### Overlap Experiment (500 records, window_len=200, 150 epochs, CPU)
+
+Five windowing strategies compared — 10% to 50% overlap:
 
 | Overlap | Windows | Contrastive Loss | Cos Similarity |
 |---|---|---|---|
@@ -47,19 +52,43 @@ The framework follows the two-stage pipeline from the PulseSelect EGM project:
 | 40% | 3,500 | 0.0115 | 0.9101 |
 | **50%** | **4,500** | **0.0116** | **0.9120 ← best** |
 
-50% overlap aligns with the PulseSelect document's design choice and is confirmed empirically.
+50% overlap aligns with the PulseSelect document's design choice and is validated empirically.
 
-**Learned augmentation preferences** (what the policy discovered without supervision):
+### Full Training Run (30% PTB-XL, Kaggle T4 GPU)
+
+| Setting | Value |
+|---|---|
+| Records | 6,551 (30% of PTB-XL, random sample) |
+| Windows | ~59,000 |
+| Epochs | 150 |
+| Batch size | 256 |
+| Device | Tesla T4 (Kaggle) |
+| Final contrastive loss | 0.0201 |
+| Final cosine similarity | **0.9145** |
+| Normalisation | global |
+
+Training curve:
 ```
-temp_crop    0.179  ← most preferred
-time_warp    0.178
-jitter       0.174
-scaling      0.166
-ch_dropout   0.162
-freq_mask    0.141  ← least preferred
+Epoch  10 → Cos: 0.8981
+Epoch  50 → Cos: 0.9088
+Epoch 100 → Cos: 0.9130
+Epoch 150 → Cos: 0.9145
 ```
 
-The policy learned to prefer temporal augmentations over frequency masking — consistent with the clinical requirement to preserve morphological signal features.
+### Learned Augmentation Preferences
+
+What the policy learned to prefer without supervision:
+
+```
+temp_crop    0.205  ← most preferred
+freq_mask    0.164
+ch_dropout   0.164
+jitter       0.162
+scaling      0.153
+time_warp    0.152  ← least preferred
+```
+
+Temporal augmentations are consistently preferred — consistent with the clinical requirement to preserve morphological signal features in EGMs.
 
 ---
 
@@ -67,25 +96,25 @@ The policy learned to prefer temporal augmentations over frequency masking — c
 
 ```
 thesis-ssl-egm/
-├── config.yaml              # All hyperparameters and paths
-├── train.py                 # Training entry point
-├── evaluate.py              # UMAP, policy analysis, PCA
-├── overlap_experiment.py    # Windowing overlap comparison
+├── config.yaml                # All hyperparameters and paths
+├── train.py                   # Training entry point
+├── evaluate.py                # UMAP, policy analysis, PCA
+├── overlap_experiment.py      # Windowing overlap comparison
 ├── src/
 │   ├── data/
-│   │   ├── dataset.py       # Generic windowed SignalDataset
-│   │   ├── ptbxl.py         # PTB-XL loader
-│   │   └── charite.py       # Charité ASCII loader (stub)
+│   │   ├── dataset.py         # Windowed SignalDataset + 3 normalisation modes
+│   │   ├── ptbxl.py           # PTB-XL loader (records100 only, random sample)
+│   │   └── charite.py         # Charité ASCII loader (stub)
 │   ├── models/
-│   │   ├── augmentations.py # 6 signal transformations
-│   │   ├── policy.py        # Learnable augmentation policy
-│   │   ├── encoder.py       # Dilated CNN encoder
-│   │   └── ssl.py           # Full SSL model
+│   │   ├── augmentations.py   # 6 signal transformations
+│   │   ├── policy.py          # Learnable augmentation policy
+│   │   ├── encoder.py         # Dilated CNN encoder
+│   │   └── ssl.py             # Full SSL model
 │   ├── training/
-│   │   ├── losses.py        # InfoNCE contrastive loss
-│   │   └── trainer.py       # Training loop
+│   │   ├── losses.py          # InfoNCE contrastive loss
+│   │   └── trainer.py         # Training loop
 │   └── evaluation/
-└── results/                 # Models + plots (gitignored)
+└── results/                   # Models + plots (gitignored)
 ```
 
 ---
@@ -106,15 +135,20 @@ pip install wfdb neurokit2 umap-learn
 ## Usage
 
 ### Configure
-Edit `config.yaml` — switch between PTB-XL and Charité:
+
+Edit `config.yaml`:
+
 ```yaml
 data:
   source: ptbxl        # or charite
-  max_records: 500     # null = all records
+  max_records: 6551    # null = all records
   window_len: 200
   overlap: 0.5
+  norm_mode: global    # window / patient / global
+
 model:
   in_channels: 12      # 12 PTB-XL, 25 Charité
+
 training:
   reconstruction_weight: 0.0   # contrastive only
 ```
@@ -129,61 +163,101 @@ python train.py
 python evaluate.py
 ```
 
-### Run overlap experiment
+### Overlap experiment
 ```bash
 python overlap_experiment.py
 ```
 
+### Training on Kaggle (recommended)
+
+PTB-XL is available natively on Kaggle — no download needed:
+
+```python
+os.symlink(
+    '/kaggle/input/datasets/khyeh0719/ptb-xl-dataset/ptb-xl-a-large-publicly-available-electrocardiography-dataset-1.0.1',
+    'data/raw/ptb-xl'
+)
+```
+
 ---
 
-## Architecture
+## Key Design Choices
 
-### Learnable Augmentation Policy
-A small CNN that reads signal properties and learns which of 6 augmentations to apply and at what intensity — trained jointly with the encoder. This is the core CS contribution: augmentation strategy as a learned component, not a fixed design choice.
+| Choice | Rationale |
+|---|---|
+| Learnable augmentation policy | Augmentation semantics unknown for intracardiac EGMs — learning them is the thesis CS contribution |
+| Dilated CNN encoder | Captures local morphology and long-range temporal patterns on 1D signals |
+| GroupNorm over BatchNorm | Works with small batches, prevents collapse |
+| Single GPU training | DataParallel with GroupNorm causes representation collapse across GPUs |
+| Contrastive-only loss | Reconstruction loss unstable with 64-dim bottleneck on normalised signals |
+| 50% overlap | Empirically validated — best cosine similarity across 5 strategies |
+| Per-patient normalisation for Charité | Preserves absolute amplitude differences needed for Δ64 computation |
+| Phase-neutral training | Pre/post pairs NOT used as positives — preserves ablation-induced change in Δ64 |
+| LOPO-CV in Stage 2 | Standard for small clinical cohorts (n=65), prevents patient-level leakage |
 
-### Dilated CNN Encoder
-1D CNN with dilated convolutions capturing structure at multiple temporal scales:
-- dilation=1 → local morphology
-- dilation=2 → beat shape  
-- dilation=4 → rhythm patterns
-- dilation=8 → global signal structure
+---
 
-Outputs a 64-dimensional latent vector z per window.
+## Normalisation Strategy
 
-### Δ64 Pipeline (Stage 2 — planned)
+Three modes are supported — switchable via `config.yaml`:
+
+| Mode | Use case | Behaviour |
+|---|---|---|
+| `window` | PTB-XL development (standard SSL) | Zero-mean unit-variance per window |
+| `patient` | **Charité EGM (recommended)** | Zero-mean unit-variance per patient — preserves pre/post amplitude differences for Δ64 |
+| `global` | Middle ground | Dataset-wide statistics per channel |
+
+> ⚠️ Per-window normalisation destroys absolute amplitude differences between windows. For intracardiac EGMs, low-amplitude signals carry clinical significance and the pre/post ablation amplitude change is a key component of Δ64. Per-patient normalisation is strongly recommended for Charité data.
+
+---
+
+## Δ64 Pipeline (Stage 2 — planned)
+
 ```
 Pre-ablation windows  → Encoder → mean(z_pre)  ┐
-                                                 ├→ Δ64 → XGBoost → AF recurrence
+                                                 ├→ Δ64 = mean(z_post) - mean(z_pre) → XGBoost → AF recurrence (Yes/No)
 Post-ablation windows → Encoder → mean(z_post) ┘
 ```
 
 ---
 
-## Design Choices
+## Infrastructure Notes
 
-| Choice | Rationale |
-|---|---|
-| Learnable augmentation policy | Augmentation semantics unknown for intracardiac EGMs |
-| Dilated CNN | Captures local + long-range temporal patterns on 1D signals |
-| GroupNorm over BatchNorm | Works with small batches, prevents collapse |
-| Contrastive-only loss | Reconstruction loss unstable with 64-dim bottleneck on normalised ECG |
-| Phase-neutral training | Pre/post pairs NOT used as positives — preserves ablation-induced change in Δ64 |
-| 50% overlap | Empirically validated — best cosine similarity across 5 strategies |
-| LOPO-CV in Stage 2 | Standard for small clinical cohorts (n=65), prevents patient-level leakage |
+Development and small experiments run locally (Intel i7-1165G7, 16GB RAM, CPU only). Full training runs on **Kaggle Notebooks** (T4 GPU, free tier) where PTB-XL is available as a native dataset. Google Colab was tested but hit GPU usage limits and storage constraints.
+
+Known issue: repository name contains a leading dash (`-thesis-ssl-egm`) which requires using the full path when navigating after cloning on Kaggle: `os.chdir('/kaggle/working/-thesis-ssl-egm')`.
 
 ---
 
 ## References
 
-- Chen et al. (2020). SimCLR · [arXiv:2002.05709](https://arxiv.org/abs/2002.05709)
-- Wang et al. (2024). AutoTCL · [arXiv:2402.10434](https://arxiv.org/abs/2402.10434)
-- Hejč et al. (2024). Intracardiac EGM · [DOI:10.1016/j.bspc.2024.106274](https://doi.org/10.1016/j.bspc.2024.106274)
-- Liang et al. (2023). SSL medical time series · [DOI:10.3390/s23094221](https://doi.org/10.3390/s23094221)
-- van den Oord et al. (2018). InfoNCE · [arXiv:1807.03748](https://arxiv.org/abs/1807.03748)
+### Foundational SSL
+- Chen et al. (2020). SimCLR — A Simple Framework for Contrastive Learning · [arXiv:2002.05709](https://arxiv.org/abs/2002.05709)
+- van den Oord et al. (2018). CPC / InfoNCE — Representation Learning with Contrastive Predictive Coding · [arXiv:1807.03748](https://arxiv.org/abs/1807.03748)
+- He et al. (2022). MAE — Masked Autoencoders Are Scalable Vision Learners · [arXiv:2111.06377](https://arxiv.org/abs/2111.06377)
 
----
+### SSL for Time Series & Medical Signals
+- Liang et al. (2023). Self-Supervised Contrastive Learning for Medical Time Series: A Systematic Review · [DOI:10.3390/s23094221](https://doi.org/10.3390/s23094221)
+- Manimaran et al. (2024). NERULA: Dual-Pathway SSL for ECG · [arXiv:2405.19348](https://arxiv.org/abs/2405.19348)
+- Wang et al. (2023). COMET: Contrast Everything — Hierarchical Contrastive for Medical Time Series · [arXiv:2310.14017](https://arxiv.org/abs/2310.14017)
+- Tonekaboni et al. (2021). TNC — Unsupervised Representation Learning for Time Series · [arXiv:2106.00750](https://arxiv.org/abs/2106.00750)
+- Yue et al. (2022). TS2Vec — Universal Representation of Time Series · [arXiv:2106.10466](https://arxiv.org/abs/2106.10466)
+- Eldele et al. (2021). TS-TCC — Self-Supervised Contrastive for Semi-Supervised Time Series · [arXiv:2208.06616](https://arxiv.org/abs/2208.06616)
+- Siontis et al. (2024). Foundation Transformer for ECG-Based Cardiac Assessment · [PMC12724683](https://pmc.ncbi.nlm.nih.gov/articles/PMC12724683/)
 
-## Contact
+### Learnable Augmentation
+- Cubuk et al. (2019). AutoAugment — Learning Augmentation Strategies from Data · [arXiv:1805.09501](https://arxiv.org/abs/1805.09501)
+- Wang et al. (2024). AutoTCL — Parametric Augmentation for Time Series Contrastive Learning · [arXiv:2402.10434](https://arxiv.org/abs/2402.10434)
+- Liu et al. (2024). Guidelines for Augmentation Selection in Contrastive Learning for Time Series · [arXiv:2407.09336](https://arxiv.org/abs/2407.09336)
+- Gao & Lin (2024). Data Augmentation for Time-Series Classification: Survey · [arXiv:2310.10060](https://arxiv.org/abs/2310.10060)
+- Iglesias et al. (2023). Data Augmentation Techniques in Time Series: Survey and Taxonomy · [DOI:10.1007/s00521-023-08459-3](https://doi.org/10.1007/s00521-023-08459-3)
 
-**Andrés** · andresgb2013@gmail.com  
+### Intracardiac EGM & Clinical Context
+- Hejč et al. (2024). Multi-channel Delineation of Intracardiac Electrograms · [DOI:10.1016/j.bspc.2024.106274](https://doi.org/10.1016/j.bspc.2024.106274)
+- Kolk, Tjong et al. (2023). ML of Electrophysiological Signals for Ventricular Arrhythmia Prediction · [DOI:10.1016/j.ebiom.2023.104462](https://doi.org/10.1016/j.ebiom.2023.104462)
+- Del Val et al. (2026). ML Prediction of Outcome Following PFA Ablation · [Europace](https://academic.oup.com/europace/article/28/5/euag053/8678359)
+- Mulder et al. (2026). ML for Risk Stratification of AF Recurrence After PFA · [BMC Cardiovascular Disorders](https://link.springer.com/article/10.1186/s12872-026-05666-3)
+- Liu et al. (2025). Predicting AF Ablation Outcomes with XGBoost · [JMIR Cardio](https://cardio.jmir.org/2025/1/e77380)
+Contact
 
+Andrés · andresgb2013@gmail.com
