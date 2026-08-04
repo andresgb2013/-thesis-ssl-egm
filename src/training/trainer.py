@@ -71,24 +71,35 @@ class Trainer:
         }
 
     def train(self, dataloader):
-        epochs = self.config['training']['epochs']
-        print(f"\nTraining for {epochs} epochs on {self.device}...\n")
+        epochs = self.config["training"]["epochs"]
+        print(f"Training for {epochs} epochs on {self.device}...")
 
         for epoch in range(epochs):
             metrics = self.train_epoch(dataloader)
             self.scheduler.step()
-            self.history.append({'epoch': epoch + 1, **metrics})
+            self.history.append({"epoch": epoch + 1, **metrics})
 
             if (epoch + 1) % 10 == 0:
                 print(
                     f"Epoch {epoch+1:3d}/{epochs} | "
                     f"Loss: {metrics['loss']:.4f} | "
                     f"Contrastive: {metrics['c_loss']:.4f} | "
-                    f"Recon: {metrics['r_loss']:.4f} | "
                     f"Cos: {metrics['cos_sim']:.4f}"
                 )
+                # checkpoint cada 10 epochs — protege contra desconexión
+                checkpoint_path = os.path.join(
+                    self.config["paths"]["results_dir"],
+                    f"checkpoint_epoch_{epoch+1}.pt"
+                )
+                m = self.model.module if hasattr(self.model, "module") else self.model
+                torch.save({
+                    'epoch': epoch + 1,
+                    'model_state_dict': m.state_dict(),
+                    'optimizer_state_dict': self.optimizer.state_dict(),
+                    'history': self.history,
+                }, checkpoint_path)
 
-        # save checkpoint
-        self.model.save(self.config['paths']['checkpoint'])
-        print("\n✓ Training complete")
+        m = self.model.module if hasattr(self.model, "module") else self.model
+        m.save(self.config["paths"]["checkpoint"])
+        print("Training complete")
         return self.history
