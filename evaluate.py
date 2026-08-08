@@ -84,12 +84,13 @@ def main():
         config['data']['ptbxl_dir'],
         max_records=config['data']['max_records']
     )
-    signals = normalise(signals)
+    signals = normalise(signals, mode=config["data"]["norm_mode"])
     loader  = make_dataloader(
         signals, labels,
         window_len=config['data']['window_len'],
         batch_size=config['training']['batch_size'],
-        shuffle=False
+        shuffle=False,
+        norm_mode=config["data"]["norm_mode"]
     )
 
     # load trained model

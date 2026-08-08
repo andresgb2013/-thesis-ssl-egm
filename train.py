@@ -11,7 +11,7 @@ def main():
     with open('config.yaml', 'r') as f:
         config = yaml.safe_load(f)
 
-    device = torch.device('cpu')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Device: {device}")
 
     # ── data ─────────────────────────────────────────

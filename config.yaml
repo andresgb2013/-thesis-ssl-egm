@@ -1,10 +1,12 @@
+
 data:
   source: ptbxl
   ptbxl_dir: data/raw/ptb-xl
   charite_dir: data/raw/charite
-  max_records: 6551
+  max_records: null
   window_len: 200
   overlap: 0.5
+  norm_mode: global
 
 model:
   in_channels: 12
@@ -14,10 +16,10 @@ model:
 
 training:
   epochs: 150
-  batch_size: 32
+  batch_size: 512
   lr: 0.0003
   weight_decay: 0.0001
-  temperature: 0.07
+  temperature: 0.1
   reconstruction_weight: 0.0
 
 evaluation:
@@ -26,5 +28,5 @@ evaluation:
 
 paths:
   results_dir: results
-  checkpoint: results/encoder_full.pt
-  policy_checkpoint: results/policy_full.pt
+  checkpoint: results/encoder_v2.pt
+  policy_checkpoint: results/policy_v2.pt
