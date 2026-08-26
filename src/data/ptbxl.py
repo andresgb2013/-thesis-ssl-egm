@@ -43,5 +43,5 @@ def load_ptbxl(data_dir, max_records=None):
             pass
 
     signals = np.stack(signals, axis=0)
-    print(f"✓ Loaded {len(signals)} records — shape: {signals.shape}")
+    print(f"Loaded {len(signals)} records - shape: {signals.shape}")
     return signals, labels
